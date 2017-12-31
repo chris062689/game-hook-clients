@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/1.0.28/vue.js" integrity="sha256-uZ4EDTJw1LV+sBeXsbqHz8+UYjwTXanpjnikoKeB4ow=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-resource/0.1.16/vue-resource.js" integrity="sha256-LkeNphox282CbqLpjzltp7C9HDPORh7GdYcMTfRiWP0=" crossorigin="anonymous"></script>
+    
+    <title>Pokemon Dashboard</title>
+
+    <style type="text/css">
+        body {
+            /* CONFIG: Set this resolution to the resolution of your stream. */
+            width: 1024px;
+
+            /* CONFIG: Set the background color for transparency / chroma key */
+            background-color: rgb(128, 128, 128);
+        }
+
+        /* Uncomment the below to make widget background transparent */
+
+        /*.widget { border: 0px solid; background: none; }*/
+
+        /* Uncomment the below to make placeholder icons disappear */
+
+        /*.sprite-empty { display: none !important; }*/
+
+        section {
+            display: inline-block;
+            float: left;
+        }
+
+        .notification {
+            color: white;
+            font-size: 18px;
+            padding: 0.5em 0em 0.5em 0em;
+            text-align: center;
+        }
+
+        .widget {
+            border: 2px solid black;
+            background: linear-gradient(225deg, rgba(255, 255, 255, 1) 22%, rgba(150, 150, 150, 1) 100%);
+            color: black;
+            margin: 0.5em;
+        }
+
+        .widget div {
+            float: left;
+        }
+
+        .widget h1 {
+            font-size: 14px;
+            margin: 0.0em 0em 0.3em 0em;
+        }
+
+        .widget p {
+            font-size: 12px;
+            margin: 0.0em 0em 0.3em 0em;
+        }
+
+        .widget-md {
+            width: 235px;
+            height: 90px;
+        }
+
+        .widget-lg {
+            width: 235px;
+            height: 140px;
+        }
+
+        #widget-wildpkmn-none h1 {
+            margin-top: 58px;
+            text-align: center;
+        }
+
+        #widget-wildpkmn h1 {
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        #widget-wildpkmn .pokemon {
+            padding-left: 16px;
+            padding-top: 6px;
+        }
+
+        .stack-divs div {
+            position: absolute;
+        }
+
+        .stack-divs img {
+            position: relative;
+        }
+
+        /* Position & Layout */
+
+        .center {
+            display: block;
+            text-align: center;
+            margin: auto;
+        }
+
+        /* Sprites & Effects */
+
+        .sprite {
+            float: left;
+            margin-top: 0.2em;
+            margin-left: 0.2em;
+            margin-right: 0.8em;
+            width: 86px;
+            height: 86px;
+            overflow: hidden;
+        }
+
+        .sprite img {
+            width: 86px;
+            height: 86px;
+        }
+
+        .sprite-right {
+            margin-right: 0em;
+        }
+
+        .inactive {
+            filter: grayscale(100%);
+            opacity: 0.3;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .flip-horizontal img {
+            /* Flip the image horizontally */
+            -moz-transform: scaleX(-1);
+            -o-transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+            transform: scaleX(-1);
+            filter: FlipH;
+            -ms-filter: "FlipH";
+        }
+    </style>
+</head>
+
+<body id='view'>
+    <div v-if="p">
+        <!-- Notifications -->
+        <div class="notification">
+            <span v-for="script in p.scripts">
+                &nbsp;{{ script.notification }}&nbsp;
+            </span>
+        </div>
+
+        <section v-if="p.player.party">
+            <div class='widget widget-md' v-for="pokemon in p.player.party">
+                <selfpkmn v-if='pokemon.species.value.number != 0' :pokemon="pokemon"></selfpkmn>
+                <emptypkmn v-else></emptypkmn>
+            </div>
+        </section>
+
+        <section class='widget widget-md'>
+            <emptypkmn v-if="p.battle.isInBattle.value == false"></emptypkmn>
+            <enemypkmn v-else :pokemon="p.battle.enemy" :wild="wild" :trainer="p.battle.trainer"></enemypkmn>
+        </section>
+
+        <section id='widget-wildpkmn-none' v-show="p.map.encounterRate.value == 0" class='widget widget-lg'>
+            <h1 v-if="p.map.loadedMap.value.area">{{ p.map.loadedMap.value.area }}</h1>
+            <h1 v-else>{{p.map.loadedMap.value.id }}</h1>
+        </section>
+
+        <section id='widget-wildpkmn' v-show="p.map.encounterRate.value != 0" class='widget widget-lg'>
+            <h1 v-if="p.map.loadedMap.value.area">{{ p.map.loadedMap.value.area }}</h1>
+            <h1 v-else>{{p.map.loadedMap.value.id }}</h1>
+            <div class="wildpkmn" v-for="wildpkmn in mapUniqueEncounters">
+                <wildpkmn :name="wildpkmn.species.value.name" :caught="p.pokedex.caught.value[wildpkmn.species.value.number - 1]"></wildpkmn>
+            </div>
+        </section>
+
+        <section class="widget widget-lg">
+            <div style="margin-left: 0.5em; margin-top: 1em;">
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[0] == false}" src='http://cdn.bulbagarden.net/upload/thumb/d/dd/Boulder_Badge.png/50px-Boulder_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[1] == false}" src='http://cdn.bulbagarden.net/upload/thumb/9/9c/Cascade_Badge.png/50px-Cascade_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[2] == false}" src='http://cdn.bulbagarden.net/upload/thumb/a/a6/Thunder_Badge.png/50px-Thunder_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[3] == false}" src='http://cdn.bulbagarden.net/upload/thumb/b/b5/Rainbow_Badge.png/50px-Rainbow_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[4] == false}" src='http://cdn.bulbagarden.net/upload/thumb/7/7d/Soul_Badge.png/50px-Soul_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[5] == false}" src='http://cdn.bulbagarden.net/upload/thumb/6/6b/Marsh_Badge.png/50px-Marsh_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[6] == false}" src='http://cdn.bulbagarden.net/upload/thumb/1/12/Volcano_Badge.png/50px-Volcano_Badge.png'
+                />
+                <img class='sprite-small' v-bind:class="{'inactive': p.player.badges.value[7] == false}" src='http://cdn.bulbagarden.net/upload/thumb/7/78/Earth_Badge.png/50px-Earth_Badge.png'
+                />
+            </div>
+        </section>
+    </div>
+
+    <script type='text/javascript'>
+        window.onload = function () {
+            var view = new Vue({
+                el: '#view',
+                ready: function () {
+                    this.loadData();
+                    this.timerData();
+                },
+                data: {
+                    p: null,
+                    r: null,
+                    mapUniqueEncounters: null,
+                    wild: null
+                },
+                methods: {
+                    timerData: function () {
+                        setInterval(this.loadData, 1000);
+                    },
+                    loadData: function () {
+                        this.$http.get('http://127.0.0.1:5123/', function (data, status, request) {
+                            if (status == 200) {
+                                this.$set('p', data);
+
+                                function uniquePkmn(list) {
+                                    var existingSpecies = [];
+                                    var result = [];
+                                    $.each(list, function (i, e) {
+                                        if ($.inArray(e.species.hex.toString(), existingSpecies) == -1) {
+                                            result.push(e);
+                                            existingSpecies.push(e.species.hex.toString());
+                                        }
+                                    });
+                                    return result;
+                                }
+
+                                this.$set('wild', data.battle.isInBattle.value == 'WILD');
+                                this.$set('mapUniqueEncounters', uniquePkmn(data.map.encounters));
+                            }
+                        });
+                    }
+                }
+            });
+
+            Vue.component('emptypkmn', {
+                template: "<img class='inactive center sprite-empty' style='width: 7.9em;' src='http://i1.wp.com/nintendo-papercraft.com/wp-content/uploads/2014/04/pokeball.png?resize=512%2C376' />"
+            });
+
+            Vue.component('wildpkmn', {
+                props: ['name', 'caught'],
+                template: "<div class='pokemon stack-divs' style='width: 32px; height: 48px; '> \
+                          <img class='flip-horizontal' :src=\"'http://www.pokestadium.com/assets/img/sprites/misc/pmd2/' + name.toLowerCase() + '.png'\" />\
+                          <img style='bottom: 16px; width: 16px; height: 16px;' v-bind:class=\"{'hidden': caught == false}\" src='https://vignette3.wikia.nocookie.net/robloxpokemonbrickbronze/images/6/64/Favicon.ico/revision/latest?cb=20170630053214' /> \
+                        </div>"
+            });
+
+            Vue.component('enemypkmn', {
+                props: ['pokemon', 'wild', 'trainer'],
+                template: "\
+                    <div class='sprite sprite-right' style='float: right;'> \
+                      <img v-bind:class=\"{'inactive': pokemon.health.value == 0}\" :src=\"'http://www.pokestadium.com/sprites/emerald/' + pokemon.species.value.name.toLowerCase() + '.png'\" /> \
+                    </div> \
+                    <div style='margin-left: 0.6em; padding-top: 6px;'> \
+                      <p v-if='wild'>WILD</p> \
+                      <p v-else>{{ trainer.name.value }}'s</p> \
+                      <h1>{{ pokemon.nickname.value }}</h1> \
+                      <p>Lv {{ pokemon.level.value }}</p> \
+                      <p> HP: {{ pokemon.health.value }} / {{ pokemon.maxHealth.value }}</p> \
+                    </div>"
+            });
+
+            Vue.component('selfpkmn', {
+                props: ['pokemon'],
+                template: "\
+                    <div class='sprite flip-horizontal'> \
+                      <img v-bind:class=\"{'inactive': pokemon.health.value == 0}\" :src=\"'http://www.pokestadium.com/sprites/emerald/' + pokemon.species.value.name.toLowerCase() + '.png'\" /> \
+                    </div> \
+                    <div style='padding-top: 0.9em;'> \
+                      <h1>{{ pokemon.nickname.value }}</h1> \
+                      <p>Lv {{ pokemon.level.value }} </p> \
+                      <p> HP: {{ pokemon.health.value }} / {{ pokemon.maxHealth.value }}</p> \
+                    </div> \
+                    "
+            });
+        };
+    </script>
+</body>
+
+</html>
